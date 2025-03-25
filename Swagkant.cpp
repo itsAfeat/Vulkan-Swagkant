@@ -28,7 +28,9 @@ void SwagkantApp::initWindow(const char* title) {
 /// </summary>
 void SwagkantApp::initVulkan() {
 	createInstance();
-	setupDebugMessenger();
+	setupDebugMessenger(&debugMessenger, enableValidationLayers, instance);
+	pickPhysicalDevice();
+	createLogicalDevice();
 }
 
 /// <summary>
@@ -40,9 +42,6 @@ void SwagkantApp::mainLoop() {
 	}
 }
 
-/// <summary>
-/// Destroys and cleans up every instance, window and so forth
-/// </summary>
 void SwagkantApp::cleanup() {
 	if (enableValidationLayers) {
 		destroyDebugMessenger(instance, debugMessenger, nullptr);
@@ -153,92 +152,91 @@ bool SwagkantApp::checkValidationLayerSupport() {
 	return true;
 }
 
-/// <summary>
-/// Populates a debug messengers create info with severity, type and the debug callback
-/// </summary>
-/// <param name="createInfo">The debug messengers create info</param>
-void SwagkantApp::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-	createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-	createInfo.pfnUserCallback = debugCallback;
-}
+void SwagkantApp::pickPhysicalDevice() {
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
-/// <summary>
-/// Setup a debug messenger
-/// </summary>
-void SwagkantApp::setupDebugMessenger() {
-	if (!enableValidationLayers) return;
-
-	VkDebugUtilsMessengerCreateInfoEXT createInfo;
-	populateDebugMessengerCreateInfo(createInfo);
-
-	if (createDebugMessenger(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to setup debug messenger");
+	if (deviceCount == 0) {
+		throw std::runtime_error("Failed to find GPUs with Vulkan support!");
 	}
-}
 
-/// <summary>
-/// Creates a Vulkan debug messenger for handling validation layer callbacks
-/// </summary>
-/// <param name="instance">The Vulkan instance to associate with the debug messenger</param>
-/// <param name="pCreateInfo">Pointer to a structure containing debug callback configuration</param>
-/// <param name="pAllocator">Pointer to memory allocation callbacks</param>
-/// <param name="pDebugMessenger">Output parameter for the created debug messenger handle</param>
-/// <returns>
-/// VK_SUCCESS if successful,
-/// VK_ERROR_EXTENSION_NOT_PRESENT if debug utils extension is unavailable,
-/// Other Vulkan error codes if creation fails
-/// </return>
-VkResult SwagkantApp::createDebugMessenger(
-	VkInstance instance,
-	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-	const VkAllocationCallbacks* pAllocator,
-	VkDebugUtilsMessengerEXT* pDebugMessenger
-) {
-	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-	if (func != nullptr) {
-		return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+	std::vector<VkPhysicalDevice> devices(deviceCount);
+	std::multimap<int, VkPhysicalDevice> candidates; // automatically sorts based on score
+	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+	for (const auto& device : devices) {
+		int score = ratePhysicalDevice(device);
+		candidates.insert(std::make_pair(score, device));
+	}
+
+	// Check if the best candidate is suitable at all
+	if (candidates.rbegin()->first > 0) {
+		VkPhysicalDevice _device = candidates.rbegin()->second;
+		physicalDevice = isDeviceSuitable(_device) ? _device : VK_NULL_HANDLE;
 	}
 	else {
-		return VK_ERROR_EXTENSION_NOT_PRESENT;
+		throw std::runtime_error("Failed to find a suitable GPU!");
+	}
+
+	if (physicalDevice == VK_NULL_HANDLE) {
+		throw std::runtime_error("Failed to find a suitable GPU!");
 	}
 }
 
-/// <summary>
-/// Destroy a given debug messenger
-/// </summary>
-/// <param name="instance">the instance associated with the debug messenger</param>
-/// <param name="debugMessenger">The debug messenger to destroy</param>
-/// <param name="pAllocator">Pointer to memory allocation callbacks</param>
-void SwagkantApp::destroyDebugMessenger(
-	VkInstance instance,
-	VkDebugUtilsMessengerEXT debugMessenger,
-	const VkAllocationCallbacks* pAllocator
-) {
-	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-	if (func != nullptr) {
-		func(instance, debugMessenger, pAllocator);
+uint32_t SwagkantApp::ratePhysicalDevice(VkPhysicalDevice device) {
+	VkPhysicalDeviceProperties deviceProperties;
+	VkPhysicalDeviceFeatures deviceFeatures;
+
+	vkGetPhysicalDeviceProperties(device, &deviceProperties);
+	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+	int score = 0;
+	if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
+		score += 1000; // Discrete GPUs have a significant performance advantage
 	}
+
+	// Maximum possible size of textures affects graphics quality
+	score += deviceProperties.limits.maxImageDimension2D;
+	if (!deviceFeatures.geometryShader) {
+		return 0; // Application can't function without geometry shaders
+	}
+
+#ifndef NDEBUG
+	std::cout << deviceProperties.deviceName << " >> " << score << '\n';
+#endif
+
+	return score;
 }
 
-/// <summary>
-/// Callback function for Vulkan validation layer messages
-/// </summary>
-/// <param name="messageSeverity">Bitmask specifying severity of the message (verbose, info, warning, error)</param>
-/// <param name="messageType">Bitmask specifying type of message (general, validation, performance)</param>
-/// <param name="pCallbackData">Contains all callback information including the message itself</param>
-/// <param name="pUserData">Optional user-supplied data pointer (unused in this implementation)</param>
-/// <returns>
-/// Always returns VK_FALSE to indicate the Vulkan call should not be aborted
-/// </returns>
-VKAPI_ATTR VkBool32 VKAPI_CALL SwagkantApp::debugCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData
-) {
-	std::cerr << "Validation layer: " << pCallbackData->pMessage << "\n";
-	return VK_FALSE;
+bool SwagkantApp::isDeviceSuitable(VkPhysicalDevice device) {
+	QueueFamilyIndices indices = findQueueFamilies(device);
+	return indices.isComplete();
+}
+
+QueueFamilyIndices SwagkantApp::findQueueFamilies(VkPhysicalDevice device) {
+	QueueFamilyIndices indices;
+
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+	int i = 0;
+	for (const auto& queueFamily : queueFamilies) {
+		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			indices.graphicsFamily = i;
+		}
+		if (indices.isComplete()) {
+			break;
+		}
+
+		i++;
+	}
+
+	return indices;
+}
+
+void SwagkantApp::createLogicalDevice() {
+
 }

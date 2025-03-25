@@ -132,8 +132,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="SwagDebug.cpp" />
     <ClCompile Include="Swagkant.cpp" />
     <ClCompile Include="Swagkant.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SwagDebug.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

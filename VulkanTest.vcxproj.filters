@@ -24,5 +24,13 @@
     <ClCompile Include="Swagkant.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SwagDebug.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SwagDebug.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
