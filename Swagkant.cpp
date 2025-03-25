@@ -126,16 +126,19 @@ std::vector<const char*> SwagkantApp::getRequiredExtensions() {
 }
 
 /// <summary>
-/// 
+/// Check whether the given validation layers (see hpp file) are supported
 /// </summary>
-/// <returns></returns>
+/// <returns>Whether the validation layers are supported</returns>
 bool SwagkantApp::checkValidationLayerSupport() {
+	// Gets the TOTAL layer count
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
+	// Gets all AVAILABLE layers
 	std::vector<VkLayerProperties> availableLayers(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
+	// Enumerates through the available layers and check if the wanted ones are in there
 	for (const char* layerName : validationLayers) {
 		bool layerFound = false;
 		for (const auto& layerProperties : availableLayers) {
@@ -150,6 +153,10 @@ bool SwagkantApp::checkValidationLayerSupport() {
 	return true;
 }
 
+/// <summary>
+/// Populates a debug messengers create info with severity, type and the debug callback
+/// </summary>
+/// <param name="createInfo">The debug messengers create info</param>
 void SwagkantApp::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
 	createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -158,6 +165,9 @@ void SwagkantApp::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateIn
 	createInfo.pfnUserCallback = debugCallback;
 }
 
+/// <summary>
+/// Setup a debug messenger
+/// </summary>
 void SwagkantApp::setupDebugMessenger() {
 	if (!enableValidationLayers) return;
 
@@ -169,6 +179,18 @@ void SwagkantApp::setupDebugMessenger() {
 	}
 }
 
+/// <summary>
+/// Creates a Vulkan debug messenger for handling validation layer callbacks
+/// </summary>
+/// <param name="instance">The Vulkan instance to associate with the debug messenger</param>
+/// <param name="pCreateInfo">Pointer to a structure containing debug callback configuration</param>
+/// <param name="pAllocator">Pointer to memory allocation callbacks</param>
+/// <param name="pDebugMessenger">Output parameter for the created debug messenger handle</param>
+/// <returns>
+/// VK_SUCCESS if successful,
+/// VK_ERROR_EXTENSION_NOT_PRESENT if debug utils extension is unavailable,
+/// Other Vulkan error codes if creation fails
+/// </return>
 VkResult SwagkantApp::createDebugMessenger(
 	VkInstance instance,
 	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -184,6 +206,12 @@ VkResult SwagkantApp::createDebugMessenger(
 	}
 }
 
+/// <summary>
+/// Destroy a given debug messenger
+/// </summary>
+/// <param name="instance">the instance associated with the debug messenger</param>
+/// <param name="debugMessenger">The debug messenger to destroy</param>
+/// <param name="pAllocator">Pointer to memory allocation callbacks</param>
 void SwagkantApp::destroyDebugMessenger(
 	VkInstance instance,
 	VkDebugUtilsMessengerEXT debugMessenger,
@@ -195,6 +223,16 @@ void SwagkantApp::destroyDebugMessenger(
 	}
 }
 
+/// <summary>
+/// Callback function for Vulkan validation layer messages
+/// </summary>
+/// <param name="messageSeverity">Bitmask specifying severity of the message (verbose, info, warning, error)</param>
+/// <param name="messageType">Bitmask specifying type of message (general, validation, performance)</param>
+/// <param name="pCallbackData">Contains all callback information including the message itself</param>
+/// <param name="pUserData">Optional user-supplied data pointer (unused in this implementation)</param>
+/// <returns>
+/// Always returns VK_FALSE to indicate the Vulkan call should not be aborted
+/// </returns>
 VKAPI_ATTR VkBool32 VKAPI_CALL SwagkantApp::debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageType,
