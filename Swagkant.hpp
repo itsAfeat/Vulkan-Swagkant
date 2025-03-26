@@ -7,12 +7,13 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <iostream>
 #include <stdexcept>
+#include <iostream>
+#include <optional>
 #include <cstdlib>
 #include <vector>
 #include <map>
-#include <optional>
+#include <set>
 
 #include "SwagDebug.hpp"
 
@@ -31,9 +32,10 @@ const bool enableValidationLayers = false;
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamily;
+	std::optional<uint32_t> presentFamily;
 
-	bool isComplete() {
-		return graphicsFamily.has_value();
+	bool isComplete() const {
+		return graphicsFamily.has_value() && presentFamily.has_value();
 	}
 };
 
@@ -47,9 +49,14 @@ public:
 private:
 	GLFWwindow* window = nullptr;
 	VkInstance instance = nullptr;
-	VkDebugUtilsMessengerEXT debugMessenger;
+	VkSurfaceKHR surface;
+
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 	VkDevice device;
+	VkQueue graphicsQueue;
+	VkQueue presentQueue;
+
+	VkDebugUtilsMessengerEXT debugMessenger;
 
 	void initWindow(const char* title);
 	void initVulkan();
@@ -66,6 +73,7 @@ private:
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 
 	void createLogicalDevice();
+	void createSurface();
 };
 
 #endif // !SWAGKANT_H

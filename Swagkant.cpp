@@ -29,6 +29,7 @@ void SwagkantApp::initWindow(const char* title) {
 void SwagkantApp::initVulkan() {
 	createInstance();
 	setupDebugMessenger(&debugMessenger, enableValidationLayers, instance);
+	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
 }
@@ -42,11 +43,16 @@ void SwagkantApp::mainLoop() {
 	}
 }
 
+/// <summary>
+/// Cleans up the program by destroying EVERYTHING
+/// </summary>
 void SwagkantApp::cleanup() {
 	if (enableValidationLayers) {
 		destroyDebugMessenger(instance, debugMessenger, nullptr);
 	}
 
+	vkDestroyDevice(device, nullptr);
+	vkDestroySurfaceKHR(instance, surface, nullptr);
 	vkDestroyInstance(instance, nullptr);
 
 	glfwDestroyWindow(window);
@@ -202,14 +208,14 @@ uint32_t SwagkantApp::ratePhysicalDevice(VkPhysicalDevice device) {
 	}
 
 #ifndef NDEBUG
-	std::cout << deviceProperties.deviceName << " >> " << score << '\n';
+	std::cout << "Physical device: " << deviceProperties.deviceName << " >> " << score << '\n';
 #endif
 
 	return score;
 }
 
 bool SwagkantApp::isDeviceSuitable(VkPhysicalDevice device) {
-	QueueFamilyIndices indices = findQueueFamilies(device);
+	QueueFamilyIndices indices = findQueueFamilies(device); 
 	return indices.isComplete();
 }
 
@@ -227,9 +233,12 @@ QueueFamilyIndices SwagkantApp::findQueueFamilies(VkPhysicalDevice device) {
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			indices.graphicsFamily = i;
 		}
-		if (indices.isComplete()) {
-			break;
-		}
+
+		VkBool32 presentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+		if (presentSupport) { indices.presentFamily = i; }
+		if (indices.isComplete()) { break; }
 
 		i++;
 	}
@@ -237,6 +246,58 @@ QueueFamilyIndices SwagkantApp::findQueueFamilies(VkPhysicalDevice device) {
 	return indices;
 }
 
+/// <summary>
+/// Creates the logical device for interfacing the physical device (GPU)
+/// </summary>
 void SwagkantApp::createLogicalDevice() {
+	QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	std::set<uint32_t> uniqueQueueFamilies = {
+		indices.graphicsFamily.value(),
+		indices.presentFamily.value()
+	};
+
+	float queuePriority = 1.0f;
+	for (uint32_t queueFamily : uniqueQueueFamilies) {
+		VkDeviceQueueCreateInfo queueCreateInfo{};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamily;
+		queueCreateInfo.queueCount = 1;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
+
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	VkDeviceCreateInfo createInfo{};
+
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+	createInfo.pQueueCreateInfos = queueCreateInfos.data();
+	createInfo.pEnabledFeatures = &deviceFeatures;
+	createInfo.enabledExtensionCount = 0;
+
+	if (enableValidationLayers) {
+		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+		createInfo.ppEnabledLayerNames = validationLayers.data();
+	}
+	else {
+		createInfo.enabledLayerCount = 0;
+	}
+
+	if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create logical device!");
+	}
+
+	vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+	vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+}
+
+/// <summary>
+/// Creates the KHR surface using the window and instance
+/// </summary>
+void SwagkantApp::createSurface() {
+	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create window surface!");
+	}
 }

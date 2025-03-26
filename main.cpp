@@ -1,5 +1,4 @@
 #include "Swagkant.hpp"
-#include <limits>
 
 int main() {
 	SwagkantApp app;
