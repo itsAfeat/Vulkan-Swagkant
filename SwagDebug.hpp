@@ -4,6 +4,11 @@
 #include <vulkan/vulkan.h>
 #include <iostream>
 
+#ifndef NDEBUG
+void printDebugSection(const char* sectionName, bool sub = false);
+#endif // !NDEBUG
+
+
 void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 void setupDebugMessenger(VkDebugUtilsMessengerEXT* messenger, bool enableLayers, VkInstance instance);
 

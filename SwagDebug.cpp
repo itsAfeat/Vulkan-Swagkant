@@ -1,5 +1,16 @@
 #include "SwagDebug.hpp"
 
+#ifndef NDEBUG
+void printDebugSection(const char* sectionName, bool sub) {
+	if (sub) {
+		std::cout << "\n -------------------------------\n\t" << sectionName << "\n -------------------------------\n";
+	}
+	else {
+		std::cout << "\n\n ========================================\n\t" << sectionName << "\n ========================================\n";
+	}
+}
+#endif // !NDEBUG
+
 /// <summary>
 /// Populates a debug messengers create info with severity, type and the debug callback
 /// </summary>
