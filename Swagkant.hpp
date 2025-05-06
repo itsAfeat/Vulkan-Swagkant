@@ -20,6 +20,7 @@
 #include <algorithm>
 
 #include "SwagDebug.hpp"
+#include "IO.hpp"
 
 const uint16_t WIDTH = 800;
 const uint16_t HEIGHT = 600;
@@ -105,6 +106,7 @@ private:
 	void createSurface();
 	void createSwapchain();
 	void createImageViews();
+	void createGraphicsPipeline();
 };
 
 #endif // !SWAGKANT_H

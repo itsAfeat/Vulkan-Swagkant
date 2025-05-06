@@ -46,6 +46,7 @@ void SwagkantApp::initVulkan() {
 	createLogicalDevice();
 	createSwapchain();
 	createImageViews();
+	createGraphicsPipeline();
 }
 
 /// <summary>
@@ -538,4 +539,8 @@ void SwagkantApp::createImageViews() {
 			throw std::runtime_error("Dine image views døde eller noget :(");
 		}
 	}
+}
+
+void SwagkantApp::createGraphicsPipeline() {
+
 }
