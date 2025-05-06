@@ -5,8 +5,8 @@
 /// </summary>
 /// <param name="title">The window title</param>
 void SwagkantApp::run(const char* title) {
-	_putenv_s("VK_LOADER_LAYERS_DISABLE", "ALL");
-	_putenv_s("VK_INSTANCE_LAYERS", ":VK_LAYER_KHRONOS_validation:");
+	//_putenv_s("VK_LOADER_LAYERS_DISABLE", "ALL");
+	//_putenv_s("VK_INSTANCE_LAYERS", ":VK_LAYER_KHRONOS_validation:");
 
 	initWindow(title);
 	initVulkan();
@@ -501,21 +501,14 @@ void SwagkantApp::createSwapchain() {
 
 void SwagkantApp::createImageViews() {
 	if (device == VK_NULL_HANDLE) {
-		throw std::runtime_error("Device er squ NULL");
+		throw std::runtime_error("Device er squ NULL... øv");
 	}
 
 	if (swapChainImages.empty()) {
 		throw std::runtime_error("Der er nul og niks swap chain images");
 	}
 
-	//for (auto& view : swapChainImageViews) {
-	//	if (view != VK_NULL_HANDLE) {
-	//		vkDestroyImageView(device, view, nullptr);
-	//	}
-	//}
-
 	size_t imagesSize = swapChainImages.size();
-	//swapChainImageViews.clear();
 	swapChainImageViews.resize(imagesSize);
 
 	for (size_t i = 0; i < imagesSize; i++) {
