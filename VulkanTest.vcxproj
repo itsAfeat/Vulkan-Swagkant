@@ -113,6 +113,9 @@
       <AdditionalLibraryDirectories>E:\VulkanSDK\1.3.296.0\Lib;E:\Programming\CPP\Libraries\glfw-3.4.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>call scripts/compile_shaders.bat</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -140,6 +143,11 @@
   <ItemGroup>
     <ClInclude Include="IO.hpp" />
     <ClInclude Include="SwagDebug.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="scripts\compile_shaders.bat" />
+    <None Include="shaders\shader.frag" />
+    <None Include="shaders\shader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

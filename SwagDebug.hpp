@@ -1,5 +1,6 @@
 #ifndef SWAGDEBUG_H
 #define SWAGDEBUG_H
+//#define NDEBUG
 
 #include <vulkan/vulkan.h>
 #include <iostream>

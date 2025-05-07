@@ -536,11 +536,12 @@ void SwagkantApp::createImageViews() {
 		createInfo.subresourceRange.layerCount = 1;
 
 		if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
-			throw std::runtime_error("Dine image views døde eller noget :(");
+			throw std::runtime_error("Dine image views DØDE... eller ngoet lignende :(");
 		}
 	}
 }
 
 void SwagkantApp::createGraphicsPipeline() {
-
+	auto vertShaderCode = IOHelper::readFile("shader.vert.spv");
+	auto fragShaderCode = IOHelper::readFile("shader.frag.spv");
 }

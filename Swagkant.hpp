@@ -1,6 +1,5 @@
 #ifndef SWAGKANT_H
 #define SWAGKANT_H
-//#define NDEBUG
 
 #include <vulkan/vulkan.h>
 

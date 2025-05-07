@@ -16,6 +16,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{eedc79d4-d61e-4089-b01b-1a5e9b5baeb5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Scripts">
+      <UniqueIdentifier>{b571ab4e-7906-4622-866d-869e913fc8d4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -41,5 +44,16 @@
     <ClInclude Include="IO.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\shader.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\shader.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="scripts\compile_shaders.bat">
+      <Filter>Scripts</Filter>
+    </None>
   </ItemGroup>
 </Project>
