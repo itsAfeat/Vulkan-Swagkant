@@ -78,6 +78,9 @@ private:
 	VkDevice device;
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
+	VkRenderPass renderPass;
+	VkPipelineLayout pipelineLayout;
+	VkPipeline graphicsPipeline;
 
 	VkDebugUtilsMessengerEXT debugMessenger;
 
@@ -101,10 +104,13 @@ private:
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilites);
 
+	VkShaderModule createShaderModule(const std::vector<char>& code);
+
 	void createLogicalDevice();
 	void createSurface();
 	void createSwapchain();
 	void createImageViews();
+	void createRenderPass();
 	void createGraphicsPipeline();
 };
 
