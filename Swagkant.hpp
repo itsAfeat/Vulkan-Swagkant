@@ -82,12 +82,15 @@ private:
 	VkRenderPass renderPass;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline graphicsPipeline;
+	VkCommandPool commandPool;
+	VkCommandBuffer commandBuffer;
 
 	VkDebugUtilsMessengerEXT debugMessenger;
 
 	void initWindow(const char* title);
 	void initVulkan();
 	void mainLoop();
+	void drawFrame();
 	void cleanup();
 
 	void createInstance();
@@ -114,6 +117,10 @@ private:
 	void createRenderPass();
 	void createGraphicsPipeline();
 	void createFramebuffers();
+	void createCommandPool();
+	void createCommandBuffer();
+
+	void recordCommandBuffer(VkCommandBuffer comBuffer, uint32_t imageIndex);
 };
 
 #endif // !SWAGKANT_H

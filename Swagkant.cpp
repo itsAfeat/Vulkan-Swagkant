@@ -48,6 +48,9 @@ void SwagkantApp::initVulkan() {
 	createImageViews();
 	createRenderPass();
 	createGraphicsPipeline();
+	createFramebuffers();
+	createCommandPool();
+	createCommandBuffer();
 }
 
 /// <summary>
@@ -56,7 +59,12 @@ void SwagkantApp::initVulkan() {
 void SwagkantApp::mainLoop() {
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
+		drawFrame();
 	}
+}
+
+void SwagkantApp::drawFrame() {
+
 }
 
 /// <summary>
@@ -66,6 +74,8 @@ void SwagkantApp::cleanup() {
 #ifndef NDEBUG
 	printDebugSection("CLEANUP", false); // Layer loading happens around here... I guess
 #endif // !NDEBUG
+
+	vkDestroyCommandPool(device, commandPool, nullptr);
 
 	for (auto fb : swapChainFramebuffers) {
 		vkDestroyFramebuffer(device, fb, nullptr);
@@ -739,5 +749,75 @@ void SwagkantApp::createFramebuffers() {
 		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
 			throw std::runtime_error("Kunne ikke lave framebuffer'en :(");
 		}
+	}
+}
+
+void SwagkantApp::createCommandPool() {
+	QueueFamilyIndices familyIndices = findQueueFamilies(physicalDevice);
+
+	VkCommandPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	poolInfo.queueFamilyIndex = familyIndices.graphicsFamily.value();
+
+	if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+		throw std::runtime_error("No bathing in the pool :(");
+	}
+}
+
+void SwagkantApp::createCommandBuffer() {
+	VkCommandBufferAllocateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	bufferInfo.commandPool = commandPool;
+	bufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	bufferInfo.commandBufferCount = 1;
+
+	if (vkAllocateCommandBuffers(device, &bufferInfo, &commandBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("Kunne ikke allokerer command buffers!");
+	}
+}
+
+void SwagkantApp::recordCommandBuffer(VkCommandBuffer comBuffer, uint32_t imageIndex) {
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = 0;
+	beginInfo.pInheritanceInfo = nullptr;
+
+	if (vkBeginCommandBuffer(comBuffer, &beginInfo) != VK_SUCCESS) {
+		throw std::runtime_error("Kunne ikke begynde at optage command buffers!");
+	}
+
+	VkRenderPassBeginInfo renderPassInfo{};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass = renderPass;
+	renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+	renderPassInfo.renderArea.offset = { 0, 0 };
+	renderPassInfo.renderArea.extent = swapChainExtent;
+
+	VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+	renderPassInfo.clearValueCount = 1;
+	renderPassInfo.pClearValues = &clearColor;
+
+	vkCmdBeginRenderPass(comBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(comBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+	VkViewport view{};
+	view.x = view.y = 0.0f;
+	view.width = static_cast<float>(swapChainExtent.width);
+	view.height = static_cast<float>(swapChainExtent.height);
+	view.minDepth = 0.0f;
+	view.maxDepth = 1.0f;
+	vkCmdSetViewport(comBuffer, 0, 1, &view);
+
+	VkRect2D scissor{};
+	scissor.offset = { 0, 0 };
+	scissor.extent = swapChainExtent;
+	vkCmdSetScissor(comBuffer, 0, 1, &scissor);
+
+	vkCmdDraw(comBuffer, 3, 1, 0, 0);
+	vkCmdEndRenderPass(comBuffer);
+
+	if (vkEndCommandBuffer(comBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("Kunne ikke optage command buffer!");
 	}
 }
