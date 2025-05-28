@@ -51,6 +51,7 @@ void SwagkantApp::initVulkan() {
 	createFramebuffers();
 	createCommandPool();
 	createCommandBuffer();
+	createSyncObjects();
 }
 
 /// <summary>
@@ -61,10 +62,54 @@ void SwagkantApp::mainLoop() {
 		glfwPollEvents();
 		drawFrame();
 	}
+
+	vkDeviceWaitIdle(device);
 }
 
 void SwagkantApp::drawFrame() {
+	vkWaitForFences(device, 1, &flightFence, VK_TRUE, UINT64_MAX);
+	vkResetFences(device, 1, &flightFence);
 
+	uint32_t imageIndex;
+	vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageReadySemaphore, VK_NULL_HANDLE, &imageIndex);
+
+	vkResetCommandBuffer(commandBuffer, 0);
+	recordCommandBuffer(commandBuffer, imageIndex);
+
+	VkSubmitInfo submitInfo{};
+	VkSemaphore waitSems[] = { imageReadySemaphore };
+	VkSemaphore singalSems[] = { renderDoneSemaphore };
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.pWaitDstStageMask = waitStages;
+	
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = waitSems;
+
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = singalSems;
+
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, flightFence) != VK_SUCCESS) {
+		throw std::runtime_error("Kan desværre ej tilbyde en fin draw command buffer... undskyld :(");
+	}
+
+	VkSwapchainKHR swapChains[] = { swapChain };
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = singalSems;
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = swapChains;
+	presentInfo.pImageIndices = &imageIndex;
+	presentInfo.pResults = nullptr;
+
+	if (vkQueuePresentKHR(presentQueue, &presentInfo) != VK_SUCCESS) {
+		throw std::runtime_error("");
+	}
 }
 
 /// <summary>
@@ -88,6 +133,10 @@ void SwagkantApp::cleanup() {
 	for (auto imageView : swapChainImageViews) {
 		vkDestroyImageView(device, imageView, nullptr);
 	}
+
+	vkDestroySemaphore(device, imageReadySemaphore, nullptr);
+	vkDestroySemaphore(device, renderDoneSemaphore, nullptr);
+	vkDestroyFence(device, flightFence, nullptr);
 
 	vkDestroySwapchainKHR(device, swapChain, nullptr);
 	vkDestroyDevice(device, nullptr);
@@ -246,7 +295,7 @@ uint32_t SwagkantApp::ratePhysicalDevice(VkPhysicalDevice device) {
 	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
 	int score = 0;
-	if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
+	if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 		score += 1000; // Discrete GPUs have a significant performance advantage
 	}
 
@@ -449,12 +498,12 @@ void SwagkantApp::createLogicalDevice() {
 
 #ifndef NDEBUG
 	printDebugSection("Active layers", true);
-	
+
 	uint32_t activeLayerCount = 0;
 	vkEnumerateInstanceLayerProperties(&activeLayerCount, nullptr);
 	std::vector<VkLayerProperties> activeLayers(activeLayerCount);
 	vkEnumerateInstanceLayerProperties(&activeLayerCount, activeLayers.data());
-	
+
 	for (const auto& layer : activeLayers) {
 		std::cout << " - " << layer.layerName << "\n";
 	}
@@ -595,12 +644,23 @@ void SwagkantApp::createRenderPass() {
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
 
+	VkSubpassDependency dependency{};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = 1;
 	renderPassInfo.pAttachments = &colorAttachment;
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
+
+	renderPassInfo.dependencyCount = 1;
+	renderPassInfo.pDependencies = &dependency;
 
 	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create render pass!");
@@ -654,7 +714,7 @@ void SwagkantApp::createGraphicsPipeline() {
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; // Changed from clockwise
 	rasterizer.depthBiasEnable = VK_FALSE;
 
 	VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -777,6 +837,21 @@ void SwagkantApp::createCommandBuffer() {
 	}
 }
 
+void SwagkantApp::createSyncObjects() {
+	VkSemaphoreCreateInfo semaphoreInfo{};
+	VkFenceCreateInfo fenceInfo{};
+
+	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageReadySemaphore) != VK_SUCCESS ||
+		vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderDoneSemaphore) != VK_SUCCESS ||
+		vkCreateFence(device, &fenceInfo, nullptr, &flightFence) != VK_SUCCESS) {
+		throw std::runtime_error("Kunne ikke lave fence og semaphores!");
+	}
+}
+
 void SwagkantApp::recordCommandBuffer(VkCommandBuffer comBuffer, uint32_t imageIndex) {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -814,7 +889,7 @@ void SwagkantApp::recordCommandBuffer(VkCommandBuffer comBuffer, uint32_t imageI
 	scissor.extent = swapChainExtent;
 	vkCmdSetScissor(comBuffer, 0, 1, &scissor);
 
-	vkCmdDraw(comBuffer, 3, 1, 0, 0);
+	vkCmdDraw(comBuffer, 6, 1, 0, 0);
 	vkCmdEndRenderPass(comBuffer);
 
 	if (vkEndCommandBuffer(comBuffer) != VK_SUCCESS) {

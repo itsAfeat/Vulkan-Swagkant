@@ -85,6 +85,10 @@ private:
 	VkCommandPool commandPool;
 	VkCommandBuffer commandBuffer;
 
+	VkSemaphore imageReadySemaphore;
+	VkSemaphore renderDoneSemaphore;
+	VkFence flightFence;
+
 	VkDebugUtilsMessengerEXT debugMessenger;
 
 	void initWindow(const char* title);
@@ -119,6 +123,7 @@ private:
 	void createFramebuffers();
 	void createCommandPool();
 	void createCommandBuffer();
+	void createSyncObjects();
 
 	void recordCommandBuffer(VkCommandBuffer comBuffer, uint32_t imageIndex);
 };

@@ -22,6 +22,5 @@ std::vector<char> IOHelper::readFile(const char* filename) {
 	std::cout << "IO -> read file \"" << filename << "\"!" << "\n";
 #endif // !NDEBUG
 
-
 	return buffer;
 }
